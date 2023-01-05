@@ -1,0 +1,192 @@
+---
+title: "Atividade - Twitter API"
+author: "Amanda Freitas"
+date: "2022-01-07"
+output: html_document
+---
+
+Atividade de coleta de dados na API do Twitter utilizando a biblioteca 
+Coletando os últimos 1000 tweets das contas de Bolsonaro e Lula
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(message=FALSE, warning = FALSE)
+```
+
+```{r pacotes, include=FALSE}
+#install.packages("rtweet")
+#install.packages("tidyverse")
+#install.packages("httpuv")
+#install.packages("ggplot2")
+#install.packages("knitr")
+
+library(rtweet)
+library(tidyverse)
+library(httpuv)
+library(ggplot2)
+library(knitr)
+```
+
+# Autenticando como usuário
+com o comando **vignette("auth", package = "rtweet")** é possível ler sobre os métodos de autenticação na documentação da biblioteca rtweet.
+
+```{r autenticação, echo=TRUE}
+#vignette("auth", package = "rtweet")
+auth_setup_default()
+```
+
+# Coletando tweets
+Coletando os últimos 1000 tweets das contas oficiais de Bolsonaro (@jairbolsonaro) e Lula (@LulaOficial)
+com o comando **?get_timeline** abaixo é possível ler sobre o comando get_timeline
+na documentação da biblioteca rtweet
+
+```{r coletando tweets de Lula, echo=TRUE}
+tweets_lula <- 
+  get_timeline(
+    user = "LulaOficial",
+    n = 1000,
+    parse = TRUE,
+    verbose = TRUE,
+  )
+```
+
+```{r coletando tweets de Bolsonaro, echo=TRUE}
+tweets_bolsonaro <- 
+  get_timeline(
+    user = "jairbolsonaro",
+    n = 1000,
+    parse = TRUE,
+    verbose = TRUE
+  )
+```
+
+# Salvando os arquivos como csv
+O formato csv não aceita o tipo lista, convertendo para salvar em csv:
+
+```{r convertendo, echo=TRUE}
+tweets_lula_2 <- apply(tweets_lula, 2, as.character)
+tweets_bolsonaro_2 <- apply(tweets_bolsonaro, 2, as.character)
+```
+
+```{r salvando, echo=TRUE}
+write.csv(tweets_lula_2, "tweets_lula.csv")
+write.csv(tweets_bolsonaro_2, "tweets_bolsonaro.csv")
+```
+
+Lendo novamente os arquivos em formato de data frame:
+
+```{r lendo arquivos, echo=TRUE}
+tweets_lula <- read.csv(file = "tweets_lula.csv")
+tweets_lula <- tweets_lula %>% 
+  select(-X)
+
+tweets_bolsonaro <- read.csv(file = "tweets_bolsonaro.csv")
+tweets_bolsonaro <- tweets_bolsonaro %>% 
+  select(-X)
+```
+
+# Algumas análises
+
+Selecionando as colunas necessárias para as análises:
+```{r selecionando colunas, echo=TRUE}
+tweets_lula_2 <- tweets_lula %>% 
+  select(full_text, 
+         in_reply_to_screen_name, 
+         retweet_count, 
+         favorite_count
+         )
+
+tweets_bolsonaro_2 <- tweets_bolsonaro %>% 
+  select(full_text, 
+         in_reply_to_screen_name, 
+         retweet_count, 
+         favorite_count
+         )
+```
+
+```{r echo=FALSE}
+tweets_lula_2 %>% 
+  arrange(-favorite_count) %>% 
+  slice(1:10) %>% 
+  select(full_text, favorite_count) %>% 
+  kable(caption = "Tweets de Lula com maior número de likes")
+```
+
+```{r echo=FALSE}
+tweets_bolsonaro_2 %>% 
+  arrange(-favorite_count) %>% 
+  slice(1:10) %>% 
+  select(full_text, favorite_count) %>% 
+  kable(caption = "Tweets de Bolsonaro com maior número de likes")
+```
+
+```{r media de likes, include=FALSE}
+mean_likes_Lula <- 
+  tweets_lula_2 %>% 
+  arrange(-favorite_count) %>% 
+  summarise(media_de_likes = 
+           mean(favorite_count)) %>% 
+  pull(1)
+  
+mean_likes_Bolsonaro <- 
+  tweets_bolsonaro_2 %>% 
+  arrange(-favorite_count) %>% 
+  summarise(media_de_likes = 
+           mean(favorite_count)) %>% 
+  pull(1)
+  
+```
+
+```{r media de retweets, include=FALSE}
+mean_retweets_Lula <- 
+  tweets_lula_2 %>% 
+  arrange(-retweet_count) %>% 
+  summarise(media_de_retweets = 
+           mean(retweet_count)) %>% 
+  pull(1)
+  
+mean_retweets_Bolsonaro <- 
+  tweets_bolsonaro_2 %>% 
+  arrange(-retweet_count) %>% 
+  summarise(media_de_retweets = 
+           mean(retweet_count)) %>% 
+  pull(1)
+
+```
+
+```{r, include=FALSE}
+medias <- 
+  tibble(usuario = c("Lula", "Bolsonaro"),
+       media_likes = c(mean_likes_Lula, mean_likes_Bolsonaro),
+       media_retweets = c(mean_retweets_Lula, mean_retweets_Bolsonaro))
+
+```
+```{r echo=FALSE}
+kable(medias,
+      caption = "Médias de Likes e Retweets",
+      col.names = c("Usuário", "Médias de Likes", "Médias de Retweets"),
+                    align = "c",
+      format.args = list(decimal.mark = ",", 
+                         big.mark = "."))
+```
+
+```{r gráfico likes, echo=FALSE}
+medias %>% 
+  ggplot() +
+  geom_col(aes(x = usuario, y = media_likes, fill = usuario)) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Média de Likes das contas de Bolsonaro e Lula",
+       x = "Usuário", 
+       y = "Média de likes", 
+       fill = "Usuário")
+```
+
+```{r gráfico retweets, echo=FALSE}
+medias %>% 
+  ggplot() +
+  geom_col(aes(x = usuario, y = media_retweets, fill = usuario)) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(title = "Média de Retweets das contas de Bolsonaro e Lula",
+       x = "Usuário", 
+       y = "Média de Retweets", 
+       fill = "Usuário")
+```
