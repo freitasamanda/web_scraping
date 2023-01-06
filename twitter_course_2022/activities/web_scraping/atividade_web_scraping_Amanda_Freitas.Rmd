@@ -1,0 +1,142 @@
+---
+title: "Atividade - Web Scraping"
+author: "Amanda Freitas"
+date: "2022-01-07"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(message=FALSE, warning = FALSE)
+```
+
+```{r pacotes, include=FALSE}
+#install.packages("tidyverse")
+#install.packages("data.table")
+#install.packages("lubridate")
+#install.packages("stringr")
+#install.packages("rvest")
+#install.packages("xml2")
+#install.packages("purrr")
+#install.packages("rlist")
+#install.packages("jsonlite")
+#install.packages("wrapr")
+
+library(tidyverse) 
+library(data.table)
+library(lubridate) 
+library(stringr)
+library(rvest)
+library(xml2)
+library(purrr)
+library(rlist)
+library(jsonlite)
+library(wrapr)
+```
+
+# Baixando informações das notícias da Carta Capital sobre as Eleições de 2022
+
+No site da Carta Capital, pesquisamos na área de *busca* o termo "Eleições 2022".
+
+A cada pagina, o parâmetro que muda é o número indicado pelo **X**:
+"https://www.cartacapital.com.br/page/**X**/?s=Elei%C3%A7%C3%B5es+2022"
+
+Alguns exemplos:
+
+>"https://www.cartacapital.com.br/page/**1**/?s=Elei%C3%A7%C3%B5es+2022"
+>"https://www.cartacapital.com.br/page/**2**/?s=Elei%C3%A7%C3%B5es+2022"
+>"https://www.cartacapital.com.br/page/**3**/?s=Elei%C3%A7%C3%B5es+2022"
+
+Vamos baixar as notícias da primeira pagina até a página 20. Cada página contém 10 notícias, o que nos dará um total de 200 notícias. A única página que não segue essa estrutura é a primeira.
+
+As informações que queremos são: 
+* autor da notícia;
+* data e horário;
+* manchete;
+* descrição;
+
+Analisando a estrutura em HTML da página, vemos que as informações que desejamos estão neste caminho:
+
+```
+<body>
+<main>
+<div class="wrapper l-list">
+<div class="l-list_container">
+<div class="l-list_left">
+<section class ="l-list_list">
+<a class="l-list_item">
+```
+
+Para baixar até a página 20 vou mexer apenas no parâmetro de *page*.
+
+## Criando a lista de URLs
+
+```{r quebrando a URL, echo=TRUE}
+inicio_url <- "https://www.cartacapital.com.br/page/"
+fim_url <- "/?s=Elei%C3%A7%C3%B5es+2022"
+```
+
+```{r criando lista com as URLs, echo=TRUE}
+urls_das_paginas <- paste0(inicio_url, seq(from = 1, to = 20), fim_url)
+```
+
+Vamos explorar, como exemplo, a página 1 para criar o código que percorre o caminho em *html* até as informações que queremos:
+
+Extraindo página 1:
+```{r extraindo página 1, echo=TRUE}
+url1 <- urls_das_paginas[1]
+pagina1 <- read_html(url1)
+```
+
+Navegando no html da página:
+```{r navegando no html da página, echo=TRUE}
+pagina1 %>% 
+    html_node("body") %>% 
+    html_node("main")  %>% 
+    xml_child(3) %>% 
+    xml_child() %>% 
+    xml_child(1) %>% 
+    xml_child(1) %>% 
+    xml_children() %>% 
+    xml_text() %>% 
+    as.data.frame() %>% 
+    slice(1) %>% 
+    print()
+```
+Vemos que o código retornou 10 observações, cada uma se refere a uma notícia na página. Observando a primeira linha, vemos que temos, em formato de texto, a manchete, descrição, autor e horário da notícia.
+
+Agora vamos criar uma função que extrai a página através da *URL* e percorre o código *html* e extrai as informações:
+
+```{r criando função, echo=TRUE}
+get_info <- function(url) {
+  read_html(url) %>%
+    html_node("body") %>% 
+    html_node("main") %>% 
+    xml_child(3) %>% 
+    xml_child() %>% 
+    xml_child(1) %>% 
+    xml_child(1) %>% 
+    xml_children() %>% 
+    xml_text() 
+}
+```
+
+E vamos usar a *mapply* para aplicar a função que criamos em todas as 20 *URLs*:
+```{r echo=TRUE}
+todas_informacoes <- 
+  mapply(get_info, urls_das_paginas) %>% 
+  as.data.frame()
+```
+
+Cada linha é uma página da Carta Capital e cada observação é um texto que inclui a manchete, a descrição da matéria, o autor, a data e hora de publicação.
+
+Vizualizando a primeira observacação como exemplo:
+```{r primeira observacao, echo=TRUE}
+todas_informacoes[1,1]
+```
+
+Nosso desafio agora é realizar a limpeza desses dados. Queremos que cada linha represente uma notícia, que o link da página em que a notícia está localizada se transforme em uma coluna, e que haja colunas para: manchete, descrição, autor, data e horário. 
+
+Observando o dado, vemos que precisamos remover os caracteres *"\n\n\n\n"*. 
+A primeira informação é a manchete, e em seguida temos os caracteres *"\n"* que separam a manchete da descrição, e logo depois *""\nPor"* indica o autor da notícia. Uma barra vertical separa a data de publicação e horário, e por fim os caracteres *"\n\n"* que também precisamos remover.
+
+

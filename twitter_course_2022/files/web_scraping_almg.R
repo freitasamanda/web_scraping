@@ -124,6 +124,8 @@ FinalURLBusca <- "&q=pandemia&tipo=5&situacao=2&ano=2020&num=&ordem=0&pesquisou=
 
 NumeroPaginas <- ceiling(465/10) # para arredondar para cima
 
+?ceiling
+
 # Vamos gerar as 25 páginas de busca:
 PaginasBusca <- paste0(InicioURLBusca, seq_len(NumeroPaginas), FinalURLBusca)
 
