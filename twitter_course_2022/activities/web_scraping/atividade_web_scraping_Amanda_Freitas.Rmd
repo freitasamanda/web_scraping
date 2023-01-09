@@ -160,19 +160,19 @@ noticias <- pivot_longer(noticias,
              cols = cols)
 ```
 
+```{r}
+noticias[83,]
+```
+
+
 ```{r echo=TRUE}
 noticias <- noticias %>% 
   separate(col = value,
            into = c("n", "text"),
-           sep = 4) %>% 
-  select(-n)
+           sep = "\n\n\n") %>% 
+  
+
+unique(noticias$n)
 ```
 
-```{r}
-teste1 <- noticias %>% 
-  separate(col = text,
-           into = c("manchete", "descricao"),
-           sep = "\")
-
-```
 
