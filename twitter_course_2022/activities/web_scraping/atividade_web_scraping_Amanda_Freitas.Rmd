@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(message=FALSE, warning = FALSE)
 ```
 
-```{r pacotes, include=FALSE}
+```{r eval=FALSE, include=FALSE}
 #install.packages("tidyverse")
 #install.packages("data.table")
 #install.packages("lubridate")
@@ -20,7 +20,10 @@ knitr::opts_chunk$set(message=FALSE, warning = FALSE)
 #install.packages("rlist")
 #install.packages("jsonlite")
 #install.packages("wrapr")
+#install.packages("knitr")
+```
 
+```{r pacotes, include=FALSE}
 library(tidyverse) 
 library(data.table)
 library(lubridate) 
@@ -31,6 +34,7 @@ library(purrr)
 library(rlist)
 library(jsonlite)
 library(wrapr)
+library(knitr)
 ```
 
 # Baixando informações das notícias da Carta Capital sobre as Eleições de 2022
@@ -127,11 +131,20 @@ todas_informacoes <-
   as.data.frame()
 ```
 
+```{r saving as csv, include=FALSE}
+write.csv(todas_informacoes, "noticias_carta_capital.csv")
+```
+
+```{r reading file, include=FALSE}
+noticias <- read.csv("noticias_carta_capital.csv") %>% 
+  select(-X)
+```
+
 Cada linha é uma página da Carta Capital e cada observação é um texto que inclui a manchete, a descrição da matéria, o autor, a data e hora de publicação.
 
 Vizualizando a primeira observacação como exemplo:
 ```{r primeira observacao, echo=TRUE}
-todas_informacoes[1,1]
+noticias[1,1]
 ```
 
 Nosso desafio agora é realizar a limpeza desses dados. Queremos que cada linha represente uma notícia, que o link da página em que a notícia está localizada se transforme em uma coluna, e que haja colunas para: manchete, descrição, autor, data e horário. 
@@ -139,4 +152,27 @@ Nosso desafio agora é realizar a limpeza desses dados. Queremos que cada linha 
 Observando o dado, vemos que precisamos remover os caracteres *"\n\n\n\n"*. 
 A primeira informação é a manchete, e em seguida temos os caracteres *"\n"* que separam a manchete da descrição, e logo depois *""\nPor"* indica o autor da notícia. Uma barra vertical separa a data de publicação e horário, e por fim os caracteres *"\n\n"* que também precisamos remover.
 
+
+```{r pivot, echo=TRUE}
+cols <- colnames(noticias)
+
+noticias <- pivot_longer(noticias,
+             cols = cols)
+```
+
+```{r echo=TRUE}
+noticias <- noticias %>% 
+  separate(col = value,
+           into = c("n", "text"),
+           sep = 4) %>% 
+  select(-n)
+```
+
+```{r}
+teste1 <- noticias %>% 
+  separate(col = text,
+           into = c("manchete", "descricao"),
+           sep = "\")
+
+```
 
