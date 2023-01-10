@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(message=FALSE, warning = FALSE)
 ```
 
-```{r eval=FALSE, include=FALSE}
+```{r install packages, eval=FALSE, include=FALSE}
 #install.packages("tidyverse")
 #install.packages("data.table")
 #install.packages("lubridate")
@@ -21,10 +21,12 @@ knitr::opts_chunk$set(message=FALSE, warning = FALSE)
 #install.packages("jsonlite")
 #install.packages("wrapr")
 #install.packages("knitr")
+#install.packages("tidylog")
 ```
 
 ```{r pacotes, include=FALSE}
 library(tidyverse) 
+library(tidylog)
 library(data.table)
 library(lubridate) 
 library(stringr)
@@ -160,19 +162,59 @@ noticias <- pivot_longer(noticias,
              cols = cols)
 ```
 
-```{r}
-noticias[83,]
+
+```{r changing website links to page numbers}
+noticias <-  noticias %>% 
+  separate(col = name,
+    into = c("n", "page_name"),
+    sep = "https...www.cartacapital.com.br.page.") %>% 
+  separate(col = page_name,
+           into = c("n", "page_name2"),
+           sep = "..s.Elei.C3.A7.C3.B5es.2022") %>% 
+  select(-page_name2) %>% 
+  rename(page_number = n)
 ```
 
 
-```{r echo=TRUE}
+```{r removing \n at the begging of texts, echo=TRUE}
+#usando o padrão da maioria das observações que é "\n\n\n"
+#str_locate_all(noticias$value, "\n")
+
 noticias <- noticias %>% 
   separate(col = value,
-           into = c("n", "text"),
-           sep = "\n\n\n") %>% 
-  
-
-unique(noticias$n)
+           into = c("text", "n"),
+           sep = 4) %>% 
+  select(-text)
 ```
 
+```{r corrigindo erros em linhas que nao seguem o padrao}
+#localizando os erros
+which(str_locate(noticias$n, "\n")<5)
+
+#salvando as linhas com erros
+erros <- which(str_locate(noticias$n, "\n")<5)
+
+#corrigindo erros
+for (i in erros) {
+  noticias$n[i] <- str_remove(noticias$n[i], "\n")
+}
+
+#checando se deu certo
+for (i in erros) {
+  print(noticias$n[i])
+}
+```
+
+```{r separating title from description and author}
+noticias$n <- str_split_fixed(noticias$n,
+                "\n",
+                n = Inf)
+```
+
+```{r changing column names}
+noticias <- noticias %>%  
+  rename(manchete = n[,1])
+
+?rename
+```
 
