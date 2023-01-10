@@ -156,6 +156,7 @@ A primeira informação é a manchete, e em seguida temos os caracteres *"\n"* q
 
 
 ```{r pivot, echo=TRUE}
+#salvando nomes das colunas
 cols <- colnames(noticias)
 
 noticias <- pivot_longer(noticias,
@@ -206,15 +207,125 @@ for (i in erros) {
 ```
 
 ```{r separating title from description and author}
-noticias$n <- str_split_fixed(noticias$n,
+noticias <- str_split(noticias$n,
                 "\n",
-                n = Inf)
+                n = Inf,
+                simplify = T)
+
+noticias <- as.data.frame(noticias) 
 ```
 
 ```{r changing column names}
-noticias <- noticias %>%  
-  rename(manchete = n[,1])
+colnames(noticias)
 
-?rename
+noticias <- noticias %>% 
+  rename(Manchete = V1,
+         Descricao = V2,
+         Autor = V3)
+```
+
+As colunas V5 e V6 não tem nada, podemos removê-las:
+```{r removing columns V5 and V6}
+unique(noticias$V5)
+unique(noticias$V6)
+
+noticias <- noticias %>% 
+  select(-V5, -V6)
+```
+
+
+```{r checking errors on column V4}
+erros1 <- unique(noticias$V4)
+
+noticias <- noticias %>% 
+  mutate(Autor = case_when(V4 == "Por AFP |  09.10.2022 09h31" ~ "Por AFP |  09.10.2022 09h31",
+                           V4 == "Por CartaCapital |  11.10.2022 15h17" ~ "Por CartaCapital |  11.10.2022 15h17",
+         V4 == "Por André Barrocal |  03.02.2020 00h30" ~ "Por André Barrocal |  03.02.2020 00h30",
+         V4 == "Por Agência O Globo |  02.04.2022 08h20" ~ "Por Agência O Globo |  02.04.2022 08h20",
+         V4 == "Por Sílvio Porto |  30.12.2021 13h01" ~ "Por Sílvio Porto |  30.12.2021 13h01",
+         V4 == "Por Deutsche Welle |  22.09.2022 18h20" ~ "Por Deutsche Welle |  22.09.2022 18h20",
+         TRUE~Autor)) %>% 
+  select(-V4)
+
+```
+
+```{r checking errors on column descricao que tem autores colocando esses valores na coluna de autores}
+erros_descricao <- which(str_locate(noticias$Descricao, "Por ")>0)
+
+noticias$Autor[78] <- noticias$Descricao[78]
+
+#corrigindo erros
+for (i in erros_descricao) {
+  noticias$Autor[i] <- noticias$Descricao[i]
+}
+
+#checando se deu certo
+for (i in erros_descricao) {
+  print(noticias$Autor[i])
+}
+
+```
+
+Essas são as mesmas linhas que a manchete ficou junto com a descricao
+```{r}
+for (i in erros_descricao) {
+  print(noticias$Manchete[i])
+}
+```
+
+```{r corrigindo colunas de manchete e descricao}
+
+noticias$Descricao[78] <- "Uma das opções é a corrida por uma vaga na Câmara dos Deputados"
+
+noticias$Descricao[83] <- "Em nota, a legenda diz que as federações permitem 'o enfrentamento da cláusula de barreira, criada para asfixiar os partidos ideológicos'"
+
+noticias$Descricao[132] <- "Não cabe às entidades fiscalizadores do pleito deste ano o 'papel de controle externo' da Justiça Eleitoral, afirma Fachin"
+  
+noticias$Descricao[139] <- "Para usar uma metáfora esportiva, o jogo eleitoral de 2022 será abaixo da linha da cintura. Lula será atacado por toda ordem de questões"
+
+noticias$Descricao[179] <- "No Congresso da Força Sindical, o petista, que lidera as pesquisas, também criticou a rejeição do governo ao passaporte da vacina"
+  
+noticias$Descricao[184] <- "As declarações foram feitas antes de uma reunião com o presidente francês, Emmanuel Macron"
+
+```
+
+```{r removendo descricoes das manchetes}
+
+noticias$Manchete[78] <- str_remove(noticias$Manchete[78], "Uma das opções é a corrida por uma vaga na Câmara dos Deputados") 
+
+noticias$Manchete[83] <- str_remove(noticias$Manchete[83], "Em nota, a legenda diz que as federações permitem 'o enfrentamento da cláusula de barreira, criada para asfixiar os partidos ideológicos'")
+
+noticias$Manchete[132] <- str_remove(noticias$Manchete[132], "Não cabe às entidades fiscalizadores do pleito deste ano o 'papel de controle externo' da Justiça Eleitoral, afirma Fachin")
+
+noticias$Manchete[139] <- str_remove(noticias$Manchete[139], "Para usar uma metáfora esportiva, o jogo eleitoral de 2022 será abaixo da linha da cintura. Lula será atacado por toda ordem de questões")
+
+noticias$Manchete[179] <- str_remove(noticias$Manchete[179], "No Congresso da Força Sindical, o petista, que lidera as pesquisas, também criticou a rejeição do governo ao passaporte da vacina")
+
+noticias$Manchete[184] <- str_remove(noticias$Manchete[184], "As declarações foram feitas antes de uma reunião com o presidente francês, Emmanuel Macron")
+
+```
+
+SEPARANDO DATA
+```{r separating date from author}
+
+noticias2 <- noticias
+
+noticias2$Autor[1]
+
+#a data e hora ficam padronizadas a 16 caracteres no fim de cada observacao
+noticias2 <- noticias2 %>% 
+  separate(col = Autor,
+           into = c("Autor", "Data"),
+           sep = -16)
+
+
+
+#A hora fica padronizada a 5 caracteres no fim de cada observacao
+noticias2 <- noticias2 %>% 
+  separate(col = Data,
+           into = c("Data", "Hora"),
+           sep = -16)
+
+noticias <- as.data.frame(noticias)
 ```
 
