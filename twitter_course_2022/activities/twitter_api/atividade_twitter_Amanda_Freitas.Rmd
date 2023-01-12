@@ -5,7 +5,10 @@ date: "2022-01-07"
 output: html_document
 ---
 
-Atividade de coleta de dados na API do Twitter utilizando a biblioteca 
+Observação: o código abaixo está em R Markdown.
+
+# Atividade de coleta de dados na API do Twitter utilizando a biblioteca 
+
 Coletando os últimos 1000 tweets das contas de Bolsonaro e Lula
 
 ```{r setup, include = FALSE}
@@ -60,7 +63,7 @@ tweets_bolsonaro <-
 ```
 
 # Salvando os arquivos como csv
-O formato csv não aceita o tipo lista, convertendo para salvar em csv:
+O formato csv não aceita o tipo lista, convertendo em *character* para salvar em csv:
 
 ```{r convertendo, echo=TRUE}
 tweets_lula_2 <- apply(tweets_lula, 2, as.character)
@@ -160,6 +163,7 @@ medias <-
        media_retweets = c(mean_retweets_Lula, mean_retweets_Bolsonaro))
 
 ```
+
 ```{r echo=FALSE}
 kable(medias,
       caption = "Médias de Likes e Retweets",

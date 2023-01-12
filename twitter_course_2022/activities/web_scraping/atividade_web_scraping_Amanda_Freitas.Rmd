@@ -52,7 +52,7 @@ Alguns exemplos:
 >"https://www.cartacapital.com.br/page/**2**/?s=Elei%C3%A7%C3%B5es+2022"
 >"https://www.cartacapital.com.br/page/**3**/?s=Elei%C3%A7%C3%B5es+2022"
 
-Vamos baixar as notícias da primeira pagina até a página 20. Cada página contém 10 notícias, o que nos dará um total de 200 notícias. A única página que não segue essa estrutura é a primeira.
+Vamos baixar as notícias da primeira pagina até a página 20. Cada página contém 10 notícias, o que nos dará um total de 200 notícias. 
 
 As informações que queremos são: 
 * autor da notícia;
@@ -71,11 +71,9 @@ Analisando a estrutura em HTML da página, vemos que as informações que deseja
 <section class ="l-list_list">
 <a class="l-list_item">
 ```
-
 Para baixar até a página 20 vou mexer apenas no parâmetro de *page*.
 
-## Criando a lista de URLs
-
+Criando a lista de URLs:
 ```{r quebrando a URL, echo=TRUE}
 inicio_url <- "https://www.cartacapital.com.br/page/"
 fim_url <- "/?s=Elei%C3%A7%C3%B5es+2022"
@@ -93,8 +91,8 @@ url1 <- urls_das_paginas[1]
 pagina1 <- read_html(url1)
 ```
 
-Navegando no html da página:
-```{r navegando no html da página, echo=TRUE}
+Navegando no html da página 1:
+```{r navegando no html da página 1, echo=TRUE}
 pagina1 %>% 
     html_node("body") %>% 
     html_node("main")  %>% 
@@ -105,13 +103,11 @@ pagina1 %>%
     xml_children() %>% 
     xml_text() %>% 
     as.data.frame() %>% 
-    slice(1) %>% 
     print()
 ```
-Vemos que o código retornou 10 observações, cada uma se refere a uma notícia na página. Observando a primeira linha, vemos que temos, em formato de texto, a manchete, descrição, autor e horário da notícia.
+Vemos que navegando por esse caminho temos todas as informações que queremos das 10 notícias localizadas na página 1.
 
 Agora vamos criar uma função que extrai a página através da *URL* e percorre o código *html* e extrai as informações:
-
 ```{r criando função, echo=TRUE}
 get_info <- function(url) {
   read_html(url) %>%
@@ -133,6 +129,7 @@ todas_informacoes <-
   as.data.frame()
 ```
 
+Vamos salvar como *.csv* para usar posteriormente, assim para realizar o trabalho de limpeza de dados não precisamos rodar todo o código de web_scraping novamente, e apenas ler o arquivo csv:
 ```{r saving as csv, include=FALSE}
 write.csv(todas_informacoes, "noticias_carta_capital.csv")
 ```
@@ -141,6 +138,8 @@ write.csv(todas_informacoes, "noticias_carta_capital.csv")
 noticias <- read.csv("noticias_carta_capital.csv") %>% 
   select(-X)
 ```
+
+# Limpeza dos dados
 
 Cada linha é uma página da Carta Capital e cada observação é um texto que inclui a manchete, a descrição da matéria, o autor, a data e hora de publicação.
 
@@ -151,32 +150,20 @@ noticias[1,1]
 
 Nosso desafio agora é realizar a limpeza desses dados. Queremos que cada linha represente uma notícia, que o link da página em que a notícia está localizada se transforme em uma coluna, e que haja colunas para: manchete, descrição, autor, data e horário. 
 
-Observando o dado, vemos que precisamos remover os caracteres *"\n\n\n\n"*. 
-A primeira informação é a manchete, e em seguida temos os caracteres *"\n"* que separam a manchete da descrição, e logo depois *""\nPor"* indica o autor da notícia. Uma barra vertical separa a data de publicação e horário, e por fim os caracteres *"\n\n"* que também precisamos remover.
+Observando acima a primeira observação, vemos que precisamos remover os caracteres *"\n\n\n\n"*.  A primeira informação é a manchete, e em seguida temos os caracteres *"\n"* que separam a manchete da descrição, e logo depois *""\nPor"* indica o autor da notícia. Uma barra vertical separa a data de publicação e horário, e por fim os caracteres *"\n\n"* que também precisamos remover.
 
-
+Mudando a unidade de observação com *pivot_longer*:
 ```{r pivot, echo=TRUE}
 #salvando nomes das colunas
 cols <- colnames(noticias)
 
 noticias <- pivot_longer(noticias,
-             cols = cols)
+             cols = cols) %>%
+  #removendo a coluna com os números das páginas
+  select(-name)
 ```
 
-
-```{r changing website links to page numbers}
-noticias <-  noticias %>% 
-  separate(col = name,
-    into = c("n", "page_name"),
-    sep = "https...www.cartacapital.com.br.page.") %>% 
-  separate(col = page_name,
-           into = c("n", "page_name2"),
-           sep = "..s.Elei.C3.A7.C3.B5es.2022") %>% 
-  select(-page_name2) %>% 
-  rename(page_number = n)
-```
-
-
+Removendo caracteres do inicío:
 ```{r removing \n at the begging of texts, echo=TRUE}
 #usando o padrão da maioria das observações que é "\n\n\n"
 #str_locate_all(noticias$value, "\n")
@@ -199,6 +186,7 @@ erros <- which(str_locate(noticias$n, "\n")<5)
 for (i in erros) {
   noticias$n[i] <- str_remove(noticias$n[i], "\n")
 }
+#O erro pode ser ignorado e o código funciona, esse erro vem porque há números maiores que 200 no objeto "erros"
 
 #checando se deu certo
 for (i in erros) {
@@ -206,7 +194,8 @@ for (i in erros) {
 }
 ```
 
-```{r separating title from description and author}
+Separando o título da descrição e do autor:
+```{r separating title from description and author, echo=TRUE}
 noticias <- str_split(noticias$n,
                 "\n",
                 n = Inf,
@@ -215,7 +204,7 @@ noticias <- str_split(noticias$n,
 noticias <- as.data.frame(noticias) 
 ```
 
-```{r changing column names}
+```{r changing column names, include=FALSE}
 colnames(noticias)
 
 noticias <- noticias %>% 
@@ -225,7 +214,7 @@ noticias <- noticias %>%
 ```
 
 As colunas V5 e V6 não tem nada, podemos removê-las:
-```{r removing columns V5 and V6}
+```{r removing columns V5 and V6, echo=TRUE}
 unique(noticias$V5)
 unique(noticias$V6)
 
@@ -233,8 +222,8 @@ noticias <- noticias %>%
   select(-V5, -V6)
 ```
 
-
-```{r checking errors on column V4}
+Checando apenas as observações com erros na coluna *V4* e corrigindo:
+```{r checking errors on column V4, include=FALSE}
 erros1 <- unique(noticias$V4)
 
 noticias <- noticias %>% 
@@ -249,7 +238,7 @@ noticias <- noticias %>%
 
 ```
 
-```{r checking errors on column descricao que tem autores colocando esses valores na coluna de autores}
+```{r checking errors on column descricao que tem autores colocando esses valores na coluna de autores, include=FALSE}
 erros_descricao <- which(str_locate(noticias$Descricao, "Por ")>0)
 
 noticias$Autor[78] <- noticias$Descricao[78]
@@ -266,7 +255,7 @@ for (i in erros_descricao) {
 
 ```
 
-Essas são as mesmas linhas que a manchete ficou junto com a descricao
+Essas são as mesmas linhas que a manchete ficou junto com a descricao:
 ```{r}
 for (i in erros_descricao) {
   print(noticias$Manchete[i])
@@ -308,12 +297,8 @@ noticias$Manchete[184] <- str_remove(noticias$Manchete[184], "As declarações f
 SEPARANDO DATA
 ```{r separating date from author}
 
-noticias2 <- noticias
-
-noticias2$Autor[1]
-
 #a data e hora ficam padronizadas a 16 caracteres no fim de cada observacao
-noticias2 <- noticias2 %>% 
+noticias <- noticias %>% 
   separate(col = Autor,
            into = c("Autor", "Data"),
            sep = -16)
@@ -321,11 +306,20 @@ noticias2 <- noticias2 %>%
 
 
 #A hora fica padronizada a 5 caracteres no fim de cada observacao
-noticias2 <- noticias2 %>% 
+noticias <- noticias %>% 
   separate(col = Data,
            into = c("Data", "Hora"),
-           sep = -16)
+           sep = -5)
 
-noticias <- as.data.frame(noticias)
 ```
+
+Vendo a base limpa:
+```{r base limpa, echo=FALSE}
+head(noticias)
+```
+Salvando a base limpa como csv para usar posteriormente:
+```{r salvando a base limpa como csv, echo=TRUE}
+write.csv(noticias, "noticias_carta_capital_limpas.csv")
+```
+
 
